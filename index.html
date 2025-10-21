@@ -10,9 +10,6 @@
         body {
             font-family: 'Inter', sans-serif;
         }
-        .modal-backdrop {
-            background-color: rgba(0,0,0,0.5);
-        }
         .sortable {
             cursor: pointer;
             user-select: none;
@@ -94,7 +91,6 @@
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="initialTime">初回排尿時刻 <span class="sort-indicator"></span></th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="collectionTime">採尿時刻 <span class="sort-indicator"></span></th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="urineVolume">尿量 (mL) <span class="sort-indicator"></span></th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                             </tr>
                         </thead>
                         <tbody id="data-table" class="bg-white divide-y divide-gray-200">
@@ -106,23 +102,10 @@
         </div>
     </div>
 
-    <!-- 削除確認モーダル -->
-    <div id="delete-modal" class="fixed inset-0 z-50 flex items-center justify-center w-full h-full modal-backdrop hidden">
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <h3 class="text-lg font-bold text-gray-800 mb-4">データ削除の確認</h3>
-            <p class="text-gray-600 mb-6">このデータを本当に削除しますか？この操作は元に戻せません。</p>
-            <div class="flex justify-end space-x-4">
-                <button id="cancel-delete-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">キャンセル</button>
-                <button id="confirm-delete-btn" class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">削除</button>
-            </div>
-        </div>
-    </div>
-
-
     <script type="module">
         // Firebaseライブラリのインポート
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-        import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼【重要：セキュリティ設定】▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // 安全な運用のために、Firebaseのセキュリティルールを以下のように設定してください。
@@ -135,22 +118,17 @@
         // service cloud.firestore {
         //   match /databases/{database}/documents {
         //     match /submissions/{submissionId} {
-        //       // 学生はデータの閲覧と新規作成のみ可能
+        //       // 学生はデータの閲覧(read)と新規作成(create)のみ可能
         //       allow read, create;
-        //       // データの更新と削除は、普段は誰にも許可しない
+        //       // データの更新(update)と削除(delete)は、誰にも許可しない
         //       allow update, delete: if false;
         //     }
         //   }
         // }
         //
         // 【教員がデータを削除したい場合】
-        // 1. 上記ルールの `allow update, delete: if false;` の行を、
-        //    一時的に `allow delete;` に書き換えて「公開」する。
-        // 2. このページで必要なデータを削除する。
-        // 3. 作業が完了したら、**必ず元の `allow update, delete: if false;` に戻して再度「公開」する。**
-        //
-        // この手順により、実習中は学生が悪意なくデータを消してしまう事故を防ぎつつ、
-        // 教員は必要な時にデータ管理ができます。
+        // Firebaseコンソールの「Firestore Database」画面から直接データを削除してください。
+        // この方法が最も安全です。
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
@@ -201,13 +179,9 @@
         const messageArea = document.getElementById('message-area');
         const dataTable = document.getElementById('data-table');
         const downloadCsvButton = document.getElementById('download-csv-button');
-        const deleteModal = document.getElementById('delete-modal');
-        const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
-        const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
         const progressContainer = document.getElementById('progress-container');
         
         let currentData = [];
-        let docIdToDelete = null;
         let currentSort = {
             column: 'collectionTime',
             direction: 'asc'
@@ -346,7 +320,7 @@
             if (sortedData.length === 0) {
                 const row = dataTable.insertRow();
                 const cell = row.insertCell();
-                cell.colSpan = 6;
+                cell.colSpan = 5;
                 cell.textContent = 'まだデータがありません。';
                 cell.className = 'px-6 py-4 text-center text-gray-500';
             } else {
@@ -359,9 +333,6 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.initialTime}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.collectionTime}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.urineVolume}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button class="delete-btn text-red-600 hover:text-red-900" data-id="${docId}">削除</button>
-                        </td>
                     `;
                 });
             }
@@ -417,36 +388,6 @@
             });
         });
 
-        // 削除モーダルの表示
-        dataTable.addEventListener('click', (e) => {
-            if (e.target.classList.contains('delete-btn')) {
-                docIdToDelete = e.target.dataset.id;
-                deleteModal.classList.remove('hidden');
-            }
-        });
-
-        // 削除の実行
-        confirmDeleteBtn.addEventListener('click', async () => {
-            if (docIdToDelete) {
-                try {
-                    await deleteDoc(doc(db, "submissions", docIdToDelete));
-                    showMessage('データを削除しました。');
-                } catch (error) {
-                    console.error("Error removing document: ", error);
-                    showMessage('データの削除中にエラーが発生しました。', true);
-                } finally {
-                    docIdToDelete = null;
-                    deleteModal.classList.add('hidden');
-                }
-            }
-        });
-        
-        // 削除のキャンセル
-        cancelDeleteBtn.addEventListener('click', () => {
-            docIdToDelete = null;
-            deleteModal.classList.add('hidden');
-        });
-
         // CSVダウンロード処理
         downloadCsvButton.addEventListener('click', () => {
             if (currentData.length === 0) {
@@ -480,3 +421,4 @@
     </script>
 </body>
 </html>
+
