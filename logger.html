@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生理学実習 データ収集</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-4xl mx-auto p-4">
+        <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 text-center mb-2">生理学実習 データ収集フォーム</h1>
+            <p class="text-gray-500 text-center mb-6">ID、時刻、尿量を入力してください。</p>
+
+            <!-- 入力フォーム -->
+            <div id="submission-form" class="space-y-4 mb-8">
+                <div>
+                    <label for="anonymous-id" class="block text-sm font-medium text-gray-700 mb-1">あなたのID</label>
+                    <select id="anonymous-id" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                        <option value="">IDを選択してください</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="initial-time" class="block text-sm font-medium text-gray-700 mb-1">初回排尿時刻</label>
+                        <input type="time" id="initial-time" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    </div>
+                    <div>
+                        <label for="collection-time" class="block text-sm font-medium text-gray-700 mb-1">今回の採尿時刻</label>
+                        <input type="time" id="collection-time" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    </div>
+                </div>
+                <div>
+                    <label for="urine-volume" class="block text-sm font-medium text-gray-700 mb-1">尿量 (mL)</label>
+                    <input type="number" id="urine-volume" placeholder="数値を入力" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <button id="submit-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition-transform transform hover:scale-105">
+                    データを送信
+                </button>
+            </div>
+            
+            <!-- メッセージ表示エリア -->
+            <div id="message-area" class="text-center p-3 rounded-lg mb-8" style="display: none;"></div>
+
+            <!-- リアルタイムデータ表示 -->
+            <div>
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">リアルタイムデータ一覧</h2>
+                    <button id="download-csv-button" class="mt-2 md:mt-0 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50 transition">
+                        CSVでダウンロード
+                    </button>
+                </div>
+                <div class="overflow-x-auto bg-gray-50 p-4 rounded-lg border">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">初回排尿時刻</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">採尿時刻</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">尿量 (mL)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table" class="bg-white divide-y divide-gray-200">
+                            <!-- データがここに挿入されます -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebaseライブラリのインポート
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        // STEP 1: ここにFirebaseプロジェクトの設定を貼り付けます
+        const firebaseConfig = {
+            apiKey: "AIzaSyCiCoTNLV29LqXZCbwLKYLvNLgVQEIS87s",
+            authDomain: "clearance-2025.firebaseapp.com",
+            projectId: "clearance-2025",
+            storageBucket: "clearance-2025.firebasestorage.app",
+            messagingSenderId: "228268271251",
+            appId: "1:228268271251:web:455bfac59a3dc7f5cf0f66",
+            measurementId: "G-GWY9HR3SQD"
+            };
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+
+        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        // STEP 2: 実習で使うIDを編集します
+        const anonymousIds = [
+            'Kumo-01', 'Sora-02', 'Ame-03', 'Yuki-04', 'Niji-05', 
+            'Kaze-06', 'Hoshi-07', 'Tsuki-08', 'Taiyo-09', 'Chikyu-10'
+            // 必要に応じてIDを追加してください
+        ];
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
+        // Firebaseの初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // DOM要素の取得
+        const idSelect = document.getElementById('anonymous-id');
+        const initialTimeInput = document.getElementById('initial-time');
+        const collectionTimeInput = document.getElementById('collection-time');
+        const volumeInput = document.getElementById('urine-volume');
+        const submitButton = document.getElementById('submit-button');
+        const messageArea = document.getElementById('message-area');
+        const dataTable = document.getElementById('data-table');
+        const downloadCsvButton = document.getElementById('download-csv-button');
+        
+        let currentData = []; // CSV出力用のデータ保持変数
+
+        // プルダウンの初期化
+        anonymousIds.forEach(id => {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = id;
+            idSelect.appendChild(option);
+        });
+
+        // メッセージ表示関数
+        function showMessage(text, isError = false) {
+            messageArea.textContent = text;
+            messageArea.className = `text-center p-3 rounded-lg mb-8 ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            messageArea.style.display = 'block';
+            setTimeout(() => { messageArea.style.display = 'none'; }, 3000);
+        }
+
+        // データ送信処理
+        submitButton.addEventListener('click', async () => {
+            const id = idSelect.value;
+            const initialTime = initialTimeInput.value;
+            const collectionTime = collectionTimeInput.value;
+            const volume = volumeInput.value;
+
+            if (!id || !initialTime || !collectionTime || volume === '') {
+                showMessage('すべての項目を入力してください。', true);
+                return;
+            }
+
+            // 重複チェックとデータ書き込み
+            const docId = `${id}_${collectionTime}`; // IDと採尿時刻でユニークなIDを作成
+            const docRef = doc(db, "submissions", docId);
+
+            try {
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    showMessage('このIDと採尿時刻のデータは既に送信されています。', true);
+                } else {
+                    await setDoc(docRef, {
+                        anonymousId: id,
+                        initialTime: initialTime,
+                        collectionTime: collectionTime,
+                        urineVolume: Number(volume),
+                        timestamp: new Date()
+                    });
+                    showMessage('データを正常に送信しました。');
+                    volumeInput.value = '';
+                    collectionTimeInput.value = ''; // 採尿時刻と尿量をクリア
+                }
+            } catch (error) {
+                console.error("Error writing document: ", error);
+                showMessage('データの送信中にエラーが発生しました。', true);
+            }
+        });
+
+        // リアルタイムデータ表示処理
+        const q = query(collection(db, "submissions"), orderBy("collectionTime"), orderBy("anonymousId"));
+        onSnapshot(q, (querySnapshot) => {
+            dataTable.innerHTML = '';
+            const dataForCsv = [];
+            
+            if (querySnapshot.empty) {
+                const row = dataTable.insertRow();
+                const cell = row.insertCell();
+                cell.colSpan = 4;
+                cell.textContent = 'まだデータがありません。';
+                cell.className = 'px-6 py-4 text-center text-gray-500';
+            } else {
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    dataForCsv.push(data);
+                    const row = dataTable.insertRow();
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${data.anonymousId}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.initialTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.collectionTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.urineVolume}</td>
+                    `;
+                });
+            }
+            currentData = dataForCsv; // 最新のデータをCSV用に保持
+        });
+        
+        // CSVダウンロード処理
+        downloadCsvButton.addEventListener('click', () => {
+            if (currentData.length === 0) {
+                showMessage('ダウンロードするデータがありません。', true);
+                return;
+            }
+
+            const headers = ['ID', '初回排尿時刻', '採尿時刻', '尿量(mL)'];
+            let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
+
+            currentData.forEach(item => {
+                const row = [item.anonymousId, item.initialTime, item.collectionTime, item.urineVolume];
+                csvContent += row.join(',') + '\n';
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "physiology_lab_data.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+    </script>
+</body>
+</html>
+
