@@ -16,7 +16,7 @@
     <div class="w-full max-w-4xl mx-auto p-4">
         <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
             <h1 class="text-2xl md:text-3xl font-bold text-gray-800 text-center mb-2">生理学実習 データ収集フォーム</h1>
-            <p class="text-gray-500 text-center mb-6">ID、時刻、尿量を入力してください。</p>
+            <p class="text-gray-500 text-center mb-6">ID、飲料、時刻、尿量を入力してください。</p>
 
             <!-- 入力フォーム -->
             <div id="submission-form" class="space-y-4 mb-8">
@@ -24,6 +24,12 @@
                     <label for="anonymous-id" class="block text-sm font-medium text-gray-700 mb-1">あなたのID</label>
                     <select id="anonymous-id" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
                         <option value="">IDを選択してください</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="drink-type" class="block text-sm font-medium text-gray-700 mb-1">摂取した飲料</label>
+                    <select id="drink-type" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                        <option value="">飲料を選択してください</option>
                     </select>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -61,6 +67,7 @@
                         <thead class="bg-gray-100">
                             <tr>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">飲料</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">初回排尿時刻</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">採尿時刻</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">尿量 (mL)</th>
@@ -102,6 +109,14 @@
             // 必要に応じてIDを追加してください
         ];
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        
+        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        // STEP 3: 摂取する飲料を編集します
+        const drinkTypes = [
+            '水', '生理食塩水', '5%エタノール', '10%エタノール', 'コーヒー', 'お茶'
+            // 必要に応じて飲料を追加してください
+        ];
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         // Firebaseの初期化
         const app = initializeApp(firebaseConfig);
@@ -109,6 +124,7 @@
 
         // DOM要素の取得
         const idSelect = document.getElementById('anonymous-id');
+        const drinkSelect = document.getElementById('drink-type');
         const initialTimeInput = document.getElementById('initial-time');
         const collectionTimeInput = document.getElementById('collection-time');
         const volumeInput = document.getElementById('urine-volume');
@@ -119,12 +135,20 @@
         
         let currentData = []; // CSV出力用のデータ保持変数
 
-        // プルダウンの初期化
+        // プルダウンの初期化 (ID)
         anonymousIds.forEach(id => {
             const option = document.createElement('option');
             option.value = id;
             option.textContent = id;
             idSelect.appendChild(option);
+        });
+
+        // プルダウンの初期化 (飲料)
+        drinkTypes.forEach(drink => {
+            const option = document.createElement('option');
+            option.value = drink;
+            option.textContent = drink;
+            drinkSelect.appendChild(option);
         });
 
         // メッセージ表示関数
@@ -138,11 +162,12 @@
         // データ送信処理
         submitButton.addEventListener('click', async () => {
             const id = idSelect.value;
+            const drink = drinkSelect.value;
             const initialTime = initialTimeInput.value;
             const collectionTime = collectionTimeInput.value;
             const volume = volumeInput.value;
 
-            if (!id || !initialTime || !collectionTime || volume === '') {
+            if (!id || !drink || !initialTime || !collectionTime || volume === '') {
                 showMessage('すべての項目を入力してください。', true);
                 return;
             }
@@ -158,6 +183,7 @@
                 } else {
                     await setDoc(docRef, {
                         anonymousId: id,
+                        drinkType: drink,
                         initialTime: initialTime,
                         collectionTime: collectionTime,
                         urineVolume: Number(volume),
@@ -182,7 +208,7 @@
             if (querySnapshot.empty) {
                 const row = dataTable.insertRow();
                 const cell = row.insertCell();
-                cell.colSpan = 4;
+                cell.colSpan = 5;
                 cell.textContent = 'まだデータがありません。';
                 cell.className = 'px-6 py-4 text-center text-gray-500';
             } else {
@@ -192,6 +218,7 @@
                     const row = dataTable.insertRow();
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${data.anonymousId}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.drinkType || ''}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.initialTime}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.collectionTime}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.urineVolume}</td>
@@ -208,11 +235,11 @@
                 return;
             }
 
-            const headers = ['ID', '初回排尿時刻', '採尿時刻', '尿量(mL)'];
+            const headers = ['ID', '飲料', '初回排尿時刻', '採尿時刻', '尿量(mL)'];
             let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
 
             currentData.forEach(item => {
-                const row = [item.anonymousId, item.initialTime, item.collectionTime, item.urineVolume];
+                const row = [item.anonymousId, item.drinkType, item.initialTime, item.collectionTime, item.urineVolume];
                 csvContent += row.join(',') + '\n';
             });
 
@@ -228,4 +255,5 @@
     </script>
 </body>
 </html>
+
 
