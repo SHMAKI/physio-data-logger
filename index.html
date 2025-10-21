@@ -13,6 +13,18 @@
         .modal-backdrop {
             background-color: rgba(0,0,0,0.5);
         }
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+        }
+        .sortable:hover {
+            background-color: #f0f0f0;
+        }
+        .sort-indicator {
+            display: inline-block;
+            width: 1em;
+            text-align: right;
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
@@ -57,6 +69,14 @@
             <!-- メッセージ表示エリア -->
             <div id="message-area" class="text-center p-3 rounded-lg mb-8" style="display: none;"></div>
 
+            <!-- 提出状況プログレスバー -->
+            <div class="mb-8">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">提出状況</h2>
+                <div id="progress-container" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- Progress bars will be inserted here by JavaScript -->
+                </div>
+            </div>
+
             <!-- リアルタイムデータ表示 -->
             <div>
                 <div class="flex flex-col md:flex-row justify-between items-center mb-4">
@@ -69,11 +89,11 @@
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-100">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">飲料</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">初回排尿時刻</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">採尿時刻</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">尿量 (mL)</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="anonymousId">ID <span class="sort-indicator"></span></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="drinkType">飲料 <span class="sort-indicator"></span></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="initialTime">初回排尿時刻 <span class="sort-indicator"></span></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="collectionTime">採尿時刻 <span class="sort-indicator"></span></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="urineVolume">尿量 (mL) <span class="sort-indicator"></span></th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                             </tr>
                         </thead>
@@ -104,6 +124,35 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query, orderBy, deleteDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
+        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼【重要：セキュリティ設定】▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+        // 安全な運用のために、Firebaseのセキュリティルールを以下のように設定してください。
+        //
+        // 1. Firebaseコンソール( https://console.firebase.google.com/ )でプロジェクトを開く
+        // 2. 「Firestore Database」 -> 「ルール」タブを選択
+        // 3. 以下のルールを貼り付けて「公開」する:
+        //
+        // rules_version = '2';
+        // service cloud.firestore {
+        //   match /databases/{database}/documents {
+        //     match /submissions/{submissionId} {
+        //       // 学生はデータの閲覧と新規作成のみ可能
+        //       allow read, create;
+        //       // データの更新と削除は、普段は誰にも許可しない
+        //       allow update, delete: if false;
+        //     }
+        //   }
+        // }
+        //
+        // 【教員がデータを削除したい場合】
+        // 1. 上記ルールの `allow update, delete: if false;` の行を、
+        //    一時的に `allow delete;` に書き換えて「公開」する。
+        // 2. このページで必要なデータを削除する。
+        // 3. 作業が完了したら、**必ず元の `allow update, delete: if false;` に戻して再度「公開」する。**
+        //
+        // この手順により、実習中は学生が悪意なくデータを消してしまう事故を防ぎつつ、
+        // 教員は必要な時にデータ管理ができます。
+        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // STEP 1: ここにFirebaseプロジェクトの設定を貼り付けます
         const firebaseConfig = {
@@ -121,16 +170,19 @@
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // STEP 2: 実習で使うIDを編集します
         const anonymousIds = [
-            'Kumo-01', 'Sora-02', 'Ame-03', 'Yuki-04', 'Niji-05', 
-            'Kaze-06', 'Hoshi-07', 'Tsuki-08', 'Taiyo-09', 'Chikyu-10'
-            // 必要に応じてIDを追加してください
+            '01-Apple', '02-Berry', '03-Candy', '04-Desk', '05-Eagle',
+            '06-Fish', '07-Grape', '08-Hat', '09-Ink', '10-Juice',
+            '11-Kiwi', '12-Lemon', '13-Melon', '14-Note', '15-Orange',
+            '16-Peach', '17-Queen', '18-Rose', '19-Star', '20-Tulip',
+            '21-Umbrella', '22-Violin', '23-Water', '24-Xylophone', '25-Yacht',
+            '26-Zebra', '27-Anchor', '28-Brush', '29-Cloud', '30-Diamond'
         ];
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         
         // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
         // STEP 3: 摂取する飲料を編集します
         const drinkTypes = [
-            '水', '生理食塩水', '5%エタノール', '10%エタノール', 'コーヒー', 'お茶'
+            '水', '0.9% (w/v) 食塩水', '5% (w/v) ブドウ糖水', '0.45%NaCl, 2.5%ブドウ糖溶液'
             // 必要に応じて飲料を追加してください
         ];
         // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
@@ -152,9 +204,14 @@
         const deleteModal = document.getElementById('delete-modal');
         const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
         const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+        const progressContainer = document.getElementById('progress-container');
         
         let currentData = [];
         let docIdToDelete = null;
+        let currentSort = {
+            column: 'collectionTime',
+            direction: 'asc'
+        };
 
         // プルダウンの初期化 (ID)
         anonymousIds.forEach(id => {
@@ -189,12 +246,11 @@
             messageArea.textContent = text;
             messageArea.className = `text-center p-3 rounded-lg mb-8 ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
             messageArea.style.display = 'block';
-            setTimeout(() => { messageArea.style.display = 'none'; }, 3000);
+            setTimeout(() => { messageArea.style.display = 'none'; }, 4000);
         }
 
         // データ送信処理
         submitButton.addEventListener('click', async () => {
-            // ... (既存の送信処理は変更なし)
             const id = idSelect.value;
             const drink = drinkSelect.value;
             const initialTime = initialTimeInput.value;
@@ -203,6 +259,14 @@
 
             if (!id || !drink || !initialTime || !collectionTime || volume === '') {
                 showMessage('すべての項目を入力してください。', true);
+                return;
+            }
+
+            const initialHour = parseInt(initialTime.split(':')[0], 10);
+            const collectionHour = parseInt(collectionTime.split(':')[0], 10);
+
+            if (initialHour < 12 || collectionHour < 12) {
+                showMessage('時刻は午後（12時以降）で入力してください（例: 午後1時 → 13:00）。', true);
                 return;
             }
 
@@ -237,22 +301,57 @@
             }
         });
 
-        // リアルタイムデータ表示処理
-        const q = query(collection(db, "submissions"), orderBy("collectionTime"), orderBy("anonymousId"));
-        onSnapshot(q, (querySnapshot) => {
+        // プログレスバーをレンダリングする関数
+        function renderProgressBars(counts) {
+            progressContainer.innerHTML = '';
+            const totalSubmissions = 6; // 目標提出回数
+
+            anonymousIds.forEach(id => {
+                const count = counts[id] || 0;
+                const percentage = Math.min((count / totalSubmissions) * 100, 100);
+
+                const progressElement = document.createElement('div');
+                progressElement.className = 'p-3 bg-gray-50 rounded-lg border';
+                progressElement.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-sm font-medium text-gray-800">${id}</span>
+                        <span class="text-xs font-semibold text-gray-500">${count} / ${totalSubmissions}</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                        <div class="bg-indigo-600 h-2.5 rounded-full transition-all duration-500" style="width: ${percentage}%"></div>
+                    </div>
+                `;
+                progressContainer.appendChild(progressElement);
+            });
+        }
+        
+        // テーブルをレンダリングする関数
+        function renderTable() {
+            // ソート処理
+            const sortedData = [...currentData].sort((a, b) => {
+                const valA = a[currentSort.column];
+                const valB = b[currentSort.column];
+                
+                let comparison = 0;
+                if (valA > valB) {
+                    comparison = 1;
+                } else if (valA < valB) {
+                    comparison = -1;
+                }
+                return currentSort.direction === 'desc' ? comparison * -1 : comparison;
+            });
+
+            // テーブル描画
             dataTable.innerHTML = '';
-            const dataForCsv = [];
-            
-            if (querySnapshot.empty) {
+            if (sortedData.length === 0) {
                 const row = dataTable.insertRow();
                 const cell = row.insertCell();
-                cell.colSpan = 6; // カラム数変更
+                cell.colSpan = 6;
                 cell.textContent = 'まだデータがありません。';
                 cell.className = 'px-6 py-4 text-center text-gray-500';
             } else {
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    dataForCsv.push(data);
+                sortedData.forEach((data) => {
+                    const docId = `${data.anonymousId}_${data.collectionTime}`;
                     const row = dataTable.insertRow();
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${data.anonymousId}</td>
@@ -261,12 +360,61 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.collectionTime}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.urineVolume}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <button class="delete-btn text-red-600 hover:text-red-900" data-id="${doc.id}">削除</button>
+                            <button class="delete-btn text-red-600 hover:text-red-900" data-id="${docId}">削除</button>
                         </td>
                     `;
                 });
             }
-            currentData = dataForCsv;
+            updateSortIndicators();
+        }
+
+        // ソートインジケーター（▲▼）を更新する関数
+        function updateSortIndicators() {
+            document.querySelectorAll('th.sortable').forEach(th => {
+                const indicator = th.querySelector('.sort-indicator');
+                if (th.dataset.sortBy === currentSort.column) {
+                    indicator.textContent = currentSort.direction === 'asc' ? '▲' : '▼';
+                } else {
+                    indicator.textContent = '';
+                }
+            });
+        }
+        
+        // リアルタイムデータ取得
+        const q = query(collection(db, "submissions"), orderBy("timestamp", "desc"));
+        onSnapshot(q, (querySnapshot) => {
+            const dataFromFirestore = [];
+            querySnapshot.forEach((doc) => {
+                dataFromFirestore.push(doc.data());
+            });
+            currentData = dataFromFirestore;
+
+            // プログレスバーの更新
+            const submissionCounts = {};
+            anonymousIds.forEach(id => { submissionCounts[id] = 0; });
+            currentData.forEach(record => {
+                if (submissionCounts.hasOwnProperty(record.anonymousId)) {
+                    submissionCounts[record.anonymousId]++;
+                }
+            });
+            renderProgressBars(submissionCounts);
+
+            // テーブルの再描画
+            renderTable();
+        });
+
+        // ヘッダーをクリックしたときのソート処理
+        document.querySelectorAll('th.sortable').forEach(header => {
+            header.addEventListener('click', () => {
+                const column = header.dataset.sortBy;
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'asc';
+                }
+                renderTable();
+            });
         });
 
         // 削除モーダルの表示
@@ -301,14 +449,22 @@
 
         // CSVダウンロード処理
         downloadCsvButton.addEventListener('click', () => {
-            // ... (既存のCSV処理は変更なし)
             if (currentData.length === 0) {
                 showMessage('ダウンロードするデータがありません。', true);
                 return;
             }
             const headers = ['ID', '飲料', '初回排尿時刻', '採尿時刻', '尿量(mL)'];
             let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
-            currentData.forEach(item => {
+            const sortedData = [...currentData].sort((a, b) => {
+                const valA = a[currentSort.column];
+                const valB = b[currentSort.column];
+                let comparison = 0;
+                if (valA > valB) { comparison = 1; } 
+                else if (valA < valB) { comparison = -1; }
+                return currentSort.direction === 'desc' ? comparison * -1 : comparison;
+            });
+            
+            sortedData.forEach(item => {
                 const row = [item.anonymousId, item.drinkType, item.initialTime, item.collectionTime, item.urineVolume];
                 csvContent += row.join(',') + '\n';
             });
