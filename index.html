@@ -23,9 +23,8 @@
             text-align: right;
         }
         .heatmap-cell {
-            width: 4rem;
-            height: 2rem;
-            transition: background-color 0.3s;
+            width: 4rem; /* 幅を少し広げる */
+            height: 2.5rem; /* 高さを少し広げる *
         }
     </style>
 </head>
@@ -333,9 +332,15 @@
             anonymousIds.forEach(id => {
                 let dataRow = `<tr><td class="border border-gray-300 p-2 font-medium text-sm text-gray-800">${id}</td>`;
                 timeSlots.forEach(slot => {
-                    const submitted = submissionMap[id]?.has(slot);
-                    const cellColor = submitted ? 'bg-indigo-400' : 'bg-gray-100';
-                    dataRow += `<td class="border border-gray-300 heatmap-cell ${cellColor}"></td>`;
+                    // ★★★★★ 変更点：尿量を取得 ★★★★★
+                    const volume = submissionMap[id]?.[slot];
+                    const submitted = (volume !== undefined);
+                    
+                    const cellColor = submitted ? 'bg-indigo-400 text-white font-medium' : 'bg-gray-100 text-gray-400';
+                    const cellText = submitted ? volume : ''; // 提出されていれば尿量を、なければ空文字を表示
+
+                    // ★★★★★ 変更点：セルにテキスト（尿量）を追加 ★★★★★
+                    dataRow += `<td class="border border-gray-300 heatmap-cell ${cellColor}">${cellText}</td>`;
                 });
                 dataRow += '</tr>';
                 tbody.innerHTML += dataRow;
@@ -405,14 +410,15 @@
             });
             currentData = dataFromFirestore;
 
-            // ヒートマップ用のデータ作成
+            // ★★★★★ 変更点：ヒートマップ用のデータ構造を変更 ★★★★★
             const submissionMap = {};
-            anonymousIds.forEach(id => { submissionMap[id] = new Set(); });
+            anonymousIds.forEach(id => { submissionMap[id] = {}; }); // Set() から {} に変更
             
             currentData.forEach(record => {
                 const roundedTime = roundTime(record.collectionTime);
                 if (roundedTime && submissionMap[record.anonymousId]) {
-                    submissionMap[record.anonymousId].add(roundedTime);
+                    // add(roundedTime) の代わりに、尿量をキーと値で保存
+                    submissionMap[record.anonymousId][roundedTime] = record.urineVolume;
                 }
             });
             
@@ -467,4 +473,3 @@
     </script>
 </body>
 </html>
-
