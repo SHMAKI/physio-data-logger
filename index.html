@@ -24,7 +24,7 @@
         }
         .heatmap-cell {
             width: 4rem;
-            height: 2.5rem; 
+            height: 2.5rem;
         }
     </style>
 </head>
@@ -311,17 +311,31 @@
             }
         });
         
+        // ★★★★★ 変更点：飲料に応じた色を返すヘルパー関数 ★★★★★
+        function getDrinkColorClass(drinkType) {
+            const index = drinkTypes.indexOf(drinkType);
+            switch (index) {
+                case 0: return 'bg-blue-400 text-white font-medium'; // 水
+                case 1: return 'bg-green-400 text-white font-medium'; // 食塩水
+                case 2: return 'bg-yellow-400 text-black font-medium'; // ブドウ糖水 (文字色を黒に)
+                case 3: return 'bg-red-400 text-white font-medium'; // 混合溶液
+                default: return 'bg-gray-400 text-white font-medium'; // その他
+            }
+        }
+
         // ヒートマップをレンダリングする関数
         function renderHeatmap(submissionMap) {
             heatmapContainer.innerHTML = '';
             const table = document.createElement('table');
-            table.className = 'min-w-full text-center border-collapse border border-gray-300';
+            // ★★★★★ 変更点：table-fixed を追加し、列幅を固定 ★★★★★
+            table.className = 'min-w-full text-center border-collapse border border-gray-300 table-fixed';
 
             // ヘッダー行
             const thead = document.createElement('thead');
-            let headerRow = '<tr><th class="border border-gray-300 p-2 bg-gray-100">ID</th>';
+            // ★★★★★ 変更点：ID列と各スロット列に明示的な幅を指定 ★★★★★
+            let headerRow = '<tr><th class="border border-gray-300 p-2 bg-gray-100" style="width: 6rem;">ID</th>';
             timeSlots.forEach(slot => {
-                headerRow += `<th class="border border-gray-300 p-2 bg-gray-100 text-sm">${slot}</th>`;
+                headerRow += `<th class="border border-gray-300 p-2 bg-gray-100 text-sm" style="width: 4rem;">${slot}</th>`;
             });
             headerRow += '</tr>';
             thead.innerHTML = headerRow;
@@ -330,16 +344,16 @@
             // データ行
             const tbody = document.createElement('tbody');
             anonymousIds.forEach(id => {
-                let dataRow = `<tr><td class="border border-gray-300 p-2 font-medium text-sm text-gray-800">${id}</td>`;
+                // ★★★★★ 変更点：IDセルのスタイルを調整（幅はヘッダーで指定済み） ★★★★★
+                let dataRow = `<tr><td class="border border-gray-300 p-2 font-medium text-sm text-gray-800 word-break-all">${id}</td>`;
                 timeSlots.forEach(slot => {
-                    // ★★★★★ 変更点：尿量を取得 ★★★★★
-                    const volume = submissionMap[id]?.[slot];
-                    const submitted = (volume !== undefined);
+                    const submissionData = submissionMap[id]?.[slot];
+                    const submitted = (submissionData !== undefined);
                     
-                    const cellColor = submitted ? 'bg-indigo-400 text-white font-medium' : 'bg-gray-100 text-gray-400';
-                    const cellText = submitted ? volume : ''; // 提出されていれば尿量を、なければ空文字を表示
+                    // ★★★★★ 変更点：飲料に応じて色を決定 ★★★★★
+                    const cellColor = submitted ? getDrinkColorClass(submissionData.drink) : 'bg-gray-100 text-gray-400';
+                    const cellText = submitted ? submissionData.volume : ''; 
 
-                    // ★★★★★ 変更点：セルにテキスト（尿量）を追加 ★★★★★
                     dataRow += `<td class="border border-gray-300 heatmap-cell ${cellColor}">${cellText}</td>`;
                 });
                 dataRow += '</tr>';
@@ -412,13 +426,16 @@
 
             // ★★★★★ 変更点：ヒートマップ用のデータ構造を変更 ★★★★★
             const submissionMap = {};
-            anonymousIds.forEach(id => { submissionMap[id] = {}; }); // Set() から {} に変更
+            anonymousIds.forEach(id => { submissionMap[id] = {}; }); 
             
             currentData.forEach(record => {
                 const roundedTime = roundTime(record.collectionTime);
                 if (roundedTime && submissionMap[record.anonymousId]) {
-                    // add(roundedTime) の代わりに、尿量をキーと値で保存
-                    submissionMap[record.anonymousId][roundedTime] = record.urineVolume;
+                    // ★★★★★ 変更点：尿量と飲料をオブジェクトで保存 ★★★★★
+                    submissionMap[record.anonymousId][roundedTime] = { 
+                        volume: record.urineVolume, 
+                        drink: record.drinkType 
+                    };
                 }
             });
             
