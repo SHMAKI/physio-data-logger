@@ -265,6 +265,24 @@
                 return;
             }
 
+
+            const existingRecordsForId = currentData.filter(record => record.anonymousId === id);
+            
+            if (existingRecordsForId.length > 0) {
+                 // onSnapshotでtimestamp降順ソート済みなので、配列の最後が一番古い（＝初回）データ
+                const firstRecord = existingRecordsForId[existingRecordsForId.length - 1]; 
+
+                if (drink !== firstRecord.drinkType) {
+                     showMessage(`選択された飲料「${drink}」が初回登録の飲料「${firstRecord.drinkType}」と異なります。`, true);
+                     return; // 送信をブロック
+                 }
+                 if(initialTime !== firstRecord.initialTime) {
+                     showMessage(`入力された初回排尿時刻「${initialTime}」が初回登録の時刻「${firstRecord.initialTime}」と異なります。`, true);
+                     return; // 送信をブロック
+                 }
+            }
+            
+
             const roundedCollectionTime = roundTime(collectionTime);
             if (!roundedCollectionTime) {
                 showMessage('採尿時刻が指定された時間範囲外です。', true);
