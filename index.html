@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>生理学実習 データ収集</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0"></script>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
@@ -106,9 +108,14 @@
             <div>
                 <div class="flex flex-col md:flex-row justify-between items-center mb-4">
                     <h2 class="text-xl md:text-2xl font-bold text-gray-800">リアルタイムデータ一覧</h2>
-                    <button id="download-csv-button" class="mt-2 md:mt-0 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50 transition">
-                        CSVでダウンロード
-                    </button>
+                    <div class="flex gap-2 mt-2 md:mt-0">
+                        <button id="generate-graphs-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition">
+                            グラフを生成
+                        </button>
+                        <button id="download-csv-button" class="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50 transition">
+                            CSVでダウンロード
+                        </button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto bg-gray-50 p-4 rounded-lg border">
                     <table class="min-w-full divide-y divide-gray-200">
@@ -125,6 +132,23 @@
                             <!-- データがここに挿入されます -->
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- グラフ表示エリア -->
+            <div id="graphs-section" class="mt-8" style="display: none;">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">データ分析グラフ</h2>
+                
+                <!-- 折れ線グラフ -->
+                <div class="bg-white rounded-lg shadow p-6 mb-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">尿量の経時変化（折れ線グラフ）</h3>
+                    <canvas id="line-chart"></canvas>
+                </div>
+
+                <!-- ボックスプロット -->
+                <div class="bg-white rounded-lg shadow p-6">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">尿量の分布（ボックスプロット）</h3>
+                    <div id="boxplot-chart"></div>
                 </div>
             </div>
         </div>
@@ -173,6 +197,10 @@
         const dataTable = document.getElementById('data-table');
         const downloadCsvButton = document.getElementById('download-csv-button');
         const heatmapContainer = document.getElementById('heatmap-container');
+        const generateGraphsButton = document.getElementById('generate-graphs-button');
+        const graphsSection = document.getElementById('graphs-section');
+        
+        let lineChart = null;
         
         let currentData = [];
         let currentSort = {
