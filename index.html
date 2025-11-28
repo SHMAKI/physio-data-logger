@@ -228,12 +228,12 @@
             const [hour, minute] = timeString.split(':').map(Number);
             const totalMinutes = hour * 60 + minute;
 
-            if (totalMinutes >= 13 * 60 + 46 && totalMinutes <= 14 * 60 + 15) return '飲料摂取前';
-            if (totalMinutes >= 14 * 60 + 16 && totalMinutes <= 14 * 60 + 45) return '摂取30分後';
-            if (totalMinutes >= 14 * 60 + 46 && totalMinutes <= 15 * 60 + 15) return '60分後';
-            if (totalMinutes >= 15 * 60 + 16 && totalMinutes <= 15 * 60 + 45) return '90分後';
-            if (totalMinutes >= 15 * 60 + 46 && totalMinutes <= 16 * 60 + 15) return '120分後';
-            if (totalMinutes >= 16 * 60 + 16 && totalMinutes <= 16 * 60 + 45) return '150分後';
+            if (totalMinutes >= 13 * 60 + 46 -30 && totalMinutes <= 14 * 60 + 15 -30) return '飲料摂取前';
+            if (totalMinutes >= 14 * 60 + 16 -30 && totalMinutes <= 14 * 60 + 45 -30) return '摂取30分後';
+            if (totalMinutes >= 14 * 60 + 46 -30 && totalMinutes <= 15 * 60 + 15 -30) return '60分後';
+            if (totalMinutes >= 15 * 60 + 16 -30 && totalMinutes <= 15 * 60 + 45 -30) return '90分後';
+            if (totalMinutes >= 15 * 60 + 46 -30 && totalMinutes <= 16 * 60 + 15 -30) return '120分後';
+            if (totalMinutes >= 16 * 60 + 16 -30 && totalMinutes <= 16 * 60 + 45 -30) return '150分後';
 
             return null;
         }
