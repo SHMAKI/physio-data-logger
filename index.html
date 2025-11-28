@@ -111,32 +111,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼【重要：セキュリティ設定】▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        // 安全な運用のために、Firebaseのセキュリティルールを以下のように設定してください。
-        //
-        // 1. Firebaseコンソール( https://console.firebase.google.com/ )でプロジェクトを開く
-        // 2. 「Firestore Database」 -> 「ルール」タブを選択
-        // 3. 以下のルールを貼り付けて「公開」する:
-        //
-        // rules_version = '2';
-        // service cloud.firestore {
-        //   match /databases/{database}/documents {
-        //     match /submissions/{submissionId} {
-        //       // 学生はデータの閲覧(read)と新規作成(create)のみ可能
-        //       allow read, create;
-        //       // データの更新(update)と削除(delete)は、誰にも許可しない
-        //       allow update, delete: if false;
-        //     }
-        //   }
-        // }
-        //
-        // 【教員がデータを削除したい場合】
-        // Firebaseコンソールの「Firestore Database」画面から直接データを削除してください。
-        // この方法が最も安全です。
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        // STEP 1: ここにFirebaseプロジェクトの設定を貼り付けます
         const firebaseConfig = {
             apiKey: "AIzaSyCiCoTNLV29LqXZCbwLKYLvNLgVQEIS87s",
             authDomain: "clearance-2025.firebaseapp.com",
@@ -145,12 +119,8 @@
             messagingSenderId: "228268271251",
             appId: "1:228268271251:web:455bfac59a3dc7f5cf0f66",
             measurementId: "G-GWY9HR3SQD"
-            };
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+        };
 
-
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        // STEP 2: 実習で使うIDを編集します
         const anonymousIds = [
             '01-Apple', '02-Berry', '03-Candy', '04-Desk', '05-Eagle',
             '06-Fish', '07-Grape', '08-Hat', '09-Ink', '10-Juice',
@@ -159,15 +129,10 @@
             '21-Umbrella', '22-Violin', '23-Water', '24-Xylophone', '25-Yacht',
             '26-Zebra', '27-Anchor', '28-Brush', '29-Cloud', '30-Diamond'
         ];
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
         
-        // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-        // STEP 3: 摂取する飲料を編集します
         const drinkTypes = [
             '水', '0.9% (w/v) 食塩水', '5% (w/v) ブドウ糖溶液', '0.45%NaCl_2.5%ブドウ糖溶液'
-            // 必要に応じて飲料を追加してください
         ];
-        // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
         // Firebaseの初期化
         const app = initializeApp(firebaseConfig);
@@ -233,7 +198,6 @@
             const [hour, minute] = timeString.split(':').map(Number);
             const totalMinutes = hour * 60 + minute;
 
-            // if (totalMinutes <= 13 * 60 + 45) return '初回排尿時';
             if (totalMinutes >= 13 * 60 + 46 && totalMinutes <= 14 * 60 + 15) return '飲料摂取前';
             if (totalMinutes >= 14 * 60 + 16 && totalMinutes <= 14 * 60 + 45) return '摂取30分後';
             if (totalMinutes >= 14 * 60 + 46 && totalMinutes <= 15 * 60 + 15) return '60分後';
@@ -261,27 +225,24 @@
             const collectionHour = parseInt(collectionTime.split(':')[0], 10);
 
             if (initialHour < 12 || collectionHour < 12) {
-                showMessage('時刻は午後（12時以降）で入力してください（例: 午後1時 → 13:00）。', true);
+                showMessage('時刻は午後(12時以降)で入力してください(例: 午後1時 → 13:00)。', true);
                 return;
             }
-
 
             const existingRecordsForId = currentData.filter(record => record.anonymousId === id);
             
             if (existingRecordsForId.length > 0) {
-                 // onSnapshotでtimestamp降順ソート済みなので、配列の最後が一番古い（＝初回）データ
                 const firstRecord = existingRecordsForId[existingRecordsForId.length - 1]; 
 
                 if (drink !== firstRecord.drinkType) {
-                     showMessage(`選択された飲料「${drink}」が初回登録の飲料「${firstRecord.drinkType}」と異なります。`, true);
-                     return; // 送信をブロック
-                 }
-                 if(initialTime !== firstRecord.initialTime) {
-                     showMessage(`入力された初回排尿時刻「${initialTime}」が初回登録の時刻「${firstRecord.initialTime}」と異なります。`, true);
-                     return; // 送信をブロック
-                 }
+                    showMessage(`選択された飲料「${drink}」が初回登録の飲料「${firstRecord.drinkType}」と異なります。`, true);
+                    return;
+                }
+                if(initialTime !== firstRecord.initialTime) {
+                    showMessage(`入力された初回排尿時刻「${initialTime}」が初回登録の時刻「${firstRecord.initialTime}」と異なります。`, true);
+                    return;
+                }
             }
-            
 
             const roundedCollectionTime = roundTime(collectionTime);
             if (!roundedCollectionTime) {
@@ -329,15 +290,15 @@
             }
         });
         
-        // ★★★★★ 変更点：飲料に応じた色を返すヘルパー関数 ★★★★★
-        function getDrinkColorClass(drinkType) {
+        // ★★★★★ NEJMカラーパレット適用：飲料に応じた背景色を返す関数 ★★★★★
+        function getDrinkBackgroundColor(drinkType) {
             const index = drinkTypes.indexOf(drinkType);
             switch (index) {
-                case 0: return 'bg-blue-400 text-white font-medium'; // 水
-                case 1: return 'bg-green-400 text-white font-medium'; // 食塩水
-                case 2: return 'bg-yellow-400 text-black font-medium'; // ブドウ糖水 (文字色を黒に)
-                case 3: return 'bg-red-400 text-white font-medium'; // 混合溶液
-                default: return 'bg-gray-400 text-white font-medium'; // その他
+                case 0: return '#BC3C29'; // 水 - NEJM Red
+                case 1: return '#0072B5'; // 食塩水 - NEJM Blue
+                case 2: return '#E18727'; // ブドウ糖水 - NEJM Orange
+                case 3: return '#20854E'; // 混合溶液 - NEJM Green
+                default: return '#9CA3AF'; // その他 - Gray
             }
         }
 
@@ -345,12 +306,10 @@
         function renderHeatmap(submissionMap) {
             heatmapContainer.innerHTML = '';
             const table = document.createElement('table');
-            // ★★★★★ 変更点：table-fixed を追加し、列幅を固定 ★★★★★
             table.className = 'min-w-full text-center border-collapse border border-gray-300 table-fixed';
 
             // ヘッダー行
             const thead = document.createElement('thead');
-            // ★★★★★ 変更点：ID列と各スロット列に明示的な幅を指定 ★★★★★
             let headerRow = '<tr><th class="border border-gray-300 p-2 bg-gray-100" style="width: 6rem;">ID</th>';
             timeSlots.forEach(slot => {
                 headerRow += `<th class="border border-gray-300 p-2 bg-gray-100 text-sm" style="width: 4rem;">${slot}</th>`;
@@ -362,17 +321,18 @@
             // データ行
             const tbody = document.createElement('tbody');
             anonymousIds.forEach(id => {
-                // ★★★★★ 変更点：IDセルのスタイルを調整（幅はヘッダーで指定済み） ★★★★★
                 let dataRow = `<tr><td class="border border-gray-300 p-2 font-medium text-sm text-gray-800 word-break-all">${id}</td>`;
                 timeSlots.forEach(slot => {
                     const submissionData = submissionMap[id]?.[slot];
                     const submitted = (submissionData !== undefined);
                     
-                    // ★★★★★ 変更点：飲料に応じて色を決定 ★★★★★
-                    const cellColor = submitted ? getDrinkColorClass(submissionData.drink) : 'bg-gray-100 text-gray-400';
-                    const cellText = submitted ? submissionData.volume : ''; 
-
-                    dataRow += `<td class="border border-gray-300 heatmap-cell ${cellColor}">${cellText}</td>`;
+                    // ★★★★★ NEJMカラー適用：背景色をインラインスタイルで指定 ★★★★★
+                    if (submitted) {
+                        const bgColor = getDrinkBackgroundColor(submissionData.drink);
+                        dataRow += `<td class="border border-gray-300 heatmap-cell text-white font-medium" style="background-color: ${bgColor};">${submissionData.volume}</td>`;
+                    } else {
+                        dataRow += `<td class="border border-gray-300 heatmap-cell bg-gray-100 text-gray-400"></td>`;
+                    }
                 });
                 dataRow += '</tr>';
                 tbody.innerHTML += dataRow;
@@ -383,7 +343,6 @@
 
         // テーブルをレンダリングする関数
         function renderTable() {
-            // ソート処理
             const sortedData = [...currentData].sort((a, b) => {
                 const valA = a[currentSort.column];
                 const valB = b[currentSort.column];
@@ -397,7 +356,6 @@
                 return currentSort.direction === 'desc' ? comparison * -1 : comparison;
             });
 
-            // テーブル描画
             dataTable.innerHTML = '';
             if (sortedData.length === 0) {
                 const row = dataTable.insertRow();
@@ -407,7 +365,6 @@
                 cell.className = 'px-6 py-4 text-center text-gray-500';
             } else {
                 sortedData.forEach((data) => {
-                    const docId = `${data.anonymousId}_${data.collectionTime}`;
                     const row = dataTable.insertRow();
                     row.innerHTML = `
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${data.anonymousId}</td>
@@ -421,7 +378,7 @@
             updateSortIndicators();
         }
 
-        // ソートインジケーター（▲▼）を更新する関数
+        // ソートインジケーター(▲▼)を更新する関数
         function updateSortIndicators() {
             document.querySelectorAll('th.sortable').forEach(th => {
                 const indicator = th.querySelector('.sort-indicator');
@@ -442,14 +399,12 @@
             });
             currentData = dataFromFirestore;
 
-            // ★★★★★ 変更点：ヒートマップ用のデータ構造を変更 ★★★★★
             const submissionMap = {};
             anonymousIds.forEach(id => { submissionMap[id] = {}; }); 
             
             currentData.forEach(record => {
                 const roundedTime = roundTime(record.collectionTime);
                 if (roundedTime && submissionMap[record.anonymousId]) {
-                    // ★★★★★ 変更点：尿量と飲料をオブジェクトで保存 ★★★★★
                     submissionMap[record.anonymousId][roundedTime] = { 
                         volume: record.urineVolume, 
                         drink: record.drinkType 
@@ -504,7 +459,6 @@
             link.click();
             document.body.removeChild(link);
         });
-
     </script>
 </body>
 </html>
