@@ -5,29 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>生理学実習 データ収集</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <!-- Plotly -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            font-family: 'Inter', sans-serif;
-        }
-        .sortable {
-            cursor: pointer;
-            user-select: none;
-        }
-        .sortable:hover {
-            background-color: #f0f0f0;
-        }
-        .sort-indicator {
-            display: inline-block;
-            width: 1em;
-            text-align: right;
-        }
-        .heatmap-cell {
-            width: 4rem;
-            height: 2.5rem;
-        }
+        body { font-family: 'Inter', sans-serif; }
+        .sortable { cursor: pointer; user-select: none; }
+        .sortable:hover { background-color: #f0f0f0; }
+        .sort-indicator { display: inline-block; width: 1em; text-align: right; }
+        .heatmap-cell { width: 4rem; height: 2.5rem; }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
@@ -139,15 +125,9 @@
             <div id="graphs-section" class="mt-8" style="display: none;">
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">データ分析グラフ</h2>
                 
-                <!-- 折れ線グラフ -->
-                <div class="bg-white rounded-lg shadow p-6 mb-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">尿量の経時変化（折れ線グラフ）</h3>
-                    <canvas id="line-chart"></canvas>
-                </div>
-
-                <!-- ボックスプロット -->
+                <!-- ボックスプロットのみ表示 -->
                 <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">尿量の分布（ボックスプロット）</h3>
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">尿量の時系列分布（ボックスプロット）</h3>
                     <div id="boxplot-chart"></div>
                 </div>
             </div>
@@ -199,8 +179,6 @@
         const heatmapContainer = document.getElementById('heatmap-container');
         const generateGraphsButton = document.getElementById('generate-graphs-button');
         const graphsSection = document.getElementById('graphs-section');
-        
-        let lineChart = null;
         
         let currentData = [];
         let currentSort = {
@@ -511,6 +489,80 @@
             link.click();
             document.body.removeChild(link);
         });
+
+        // =======================================================
+        // ▼▼▼ グラフ描画ロジック ▼▼▼
+        // =======================================================
+
+        // グラフ生成ボタンのイベントリスナー
+        generateGraphsButton.addEventListener('click', () => {
+            if (currentData.length === 0) {
+                showMessage('グラフを表示するためのデータがありません。', true);
+                return;
+            }
+
+            // グラフエリアを表示
+            graphsSection.style.display = 'block';
+
+            // ボックスプロットのみ描画
+            updateBoxPlot(); 
+        });
+
+        // -------------------------------------------------
+        // 1. Plotly ボックスプロット描画関数 (時系列版・点なし)
+        // -------------------------------------------------
+        function updateBoxPlot() {
+            // データを準備
+            const tracesData = {};
+            drinkTypes.forEach(dt => { 
+                tracesData[dt] = { x: [], y: [] }; 
+            });
+
+            currentData.forEach(record => {
+                const timeSlot = roundTime(record.collectionTime);
+                if (timeSlot && drinkTypes.includes(record.drinkType)) {
+                    tracesData[record.drinkType].x.push(timeSlot);
+                    tracesData[record.drinkType].y.push(record.urineVolume);
+                }
+            });
+
+            // Plotly用のトレース配列を作成
+            const traces = drinkTypes.map(drink => {
+                return {
+                    x: tracesData[drink].x, // X軸: 時刻カテゴリ
+                    y: tracesData[drink].y, // Y軸: 尿量
+                    name: drink,
+                    type: 'box',
+                    marker: { color: getDrinkBackgroundColor(drink) },
+                    boxpoints: false, // ★点（Jitter）を削除
+                    fillcolor: 'rgba(255,255,255,0.5)', 
+                    line: { width: 1 }
+                };
+            });
+            
+            const layout = {
+                title: '尿量の時系列分布 (Boxplot)',
+                yaxis: {
+                    title: '尿量 (mL)',
+                    zeroline: true
+                },
+                xaxis: {
+                    title: '時間',
+                    categoryorder: 'array',
+                    categoryarray: timeSlots 
+                },
+                boxmode: 'group',
+                legend: {
+                    orientation: 'h',
+                    y: 1.1 
+                }
+            };
+
+            const config = { responsive: true };
+
+            // Plotlyで描画
+            Plotly.newPlot('boxplot-chart', traces, layout, config);
+        }
     </script>
 </body>
 </html>
