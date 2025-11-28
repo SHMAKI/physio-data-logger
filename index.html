@@ -509,7 +509,7 @@
         });
 
         // -------------------------------------------------
-        // 1. Plotly ボックスプロット描画関数 (時系列版・点なし)
+        // 1. Plotly ボックスプロット描画関数 (時系列版・点重ね)
         // -------------------------------------------------
         function updateBoxPlot() {
             // データを準備
@@ -533,10 +533,16 @@
                     y: tracesData[drink].y, // Y軸: 尿量
                     name: drink,
                     type: 'box',
-                    marker: { color: getDrinkBackgroundColor(drink) },
-                    boxpoints: false, // ★点（Jitter）を削除
+                    marker: { 
+                        color: getDrinkBackgroundColor(drink),
+                        size: 12, 
+                        opacity: 0.7 
+                    },
+                    boxpoints: 'all', // ★全点を表示
+                    jitter: 0.5,      // ★散らばり具合 (0-1)
+                    pointpos: 0,      // ★箱に対する位置 (0で箱の中央に重ねる)
                     fillcolor: 'rgba(255,255,255,0.5)', 
-                    line: { width: 1 }
+                    line: { width: 1.5 }
                 };
             });
             
