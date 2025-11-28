@@ -90,13 +90,24 @@
                 </div>
             </div>
 
+            <!-- ★★★ グラフ表示エリア (表の上に移動) ★★★ -->
+            <div id="graphs-section" class="mb-8" style="display: none;">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">データ分析グラフ</h2>
+                
+                <!-- ボックスプロットのみ表示 -->
+                <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">尿量の時系列分布（ボックスプロット）</h3>
+                    <div id="boxplot-chart"></div>
+                </div>
+            </div>
+
             <!-- リアルタイムデータ表示 -->
             <div>
                 <div class="flex flex-col md:flex-row justify-between items-center mb-4">
                     <h2 class="text-xl md:text-2xl font-bold text-gray-800">リアルタイムデータ一覧</h2>
                     <div class="flex gap-2 mt-2 md:mt-0">
                         <button id="generate-graphs-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition">
-                            グラフを生成
+                            グラフを生成・更新
                         </button>
                         <button id="download-csv-button" class="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50 transition">
                             CSVでダウンロード
@@ -118,17 +129,6 @@
                             <!-- データがここに挿入されます -->
                         </tbody>
                     </table>
-                </div>
-            </div>
-
-            <!-- グラフ表示エリア -->
-            <div id="graphs-section" class="mt-8" style="display: none;">
-                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">データ分析グラフ</h2>
-                
-                <!-- ボックスプロットのみ表示 -->
-                <div class="bg-white rounded-lg shadow p-6">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-4">尿量の時系列分布（ボックスプロット）</h3>
-                    <div id="boxplot-chart"></div>
                 </div>
             </div>
         </div>
