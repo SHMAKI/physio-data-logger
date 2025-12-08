@@ -63,27 +63,7 @@
                 <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">提出状況ヒートマップ</h2>
                 
                 <!-- カラー凡例 -->
-                <div class="mb-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                    <h3 class="text-sm font-semibold text-gray-700 mb-2">飲料カラー凡例</h3>
-                    <div class="flex flex-wrap gap-4">
-                        <div class="flex items-center gap-2">
-                            <div class="w-8 h-6 rounded" style="background-color: #BC3C29;"></div>
-                            <span class="text-sm text-gray-700">水</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="w-8 h-6 rounded" style="background-color: #0072B5;"></div>
-                            <span class="text-sm text-gray-700">0.9% 食塩水</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="w-8 h-6 rounded" style="background-color: #E18727;"></div>
-                            <span class="text-sm text-gray-700">5% ブドウ糖溶液</span>
-                        </div>
-                        <div class="flex items-center gap-2">
-                            <div class="w-8 h-6 rounded" style="background-color: #20854E;"></div>
-                            <span class="text-sm text-gray-700">混合溶液</span>
-                        </div>
-                    </div>
-                </div>
+                <div id="drink-legend" class="flex flex-wrap gap-4"></div>
                 
                 <div id="heatmap-container" class="overflow-x-auto">
                     <!-- Heatmap will be inserted here by JavaScript -->
@@ -159,9 +139,20 @@
         ];
         
         const drinkTypes = [
-            '水', '0.9% (w/v) 食塩水', '5% (w/v) ブドウ糖溶液', '0.45%NaCl_2.5%ブドウ糖溶液'
+            '水', '0.9% (w/v) 食塩水', '5% (w/v) ブドウ糖溶液', '0.45%NaCl_2.5%ブドウ糖溶液',
+            //'(5)水+昼食', '(6)水+事前飲水',
         ];
 
+        // 6条件用カラー（既存NEJM 4色を踏襲しつつ2色追加）
+        const DRINK_COLORS = [
+          '#BC3C29', // (1) 水 - Red
+          '#0072B5', // (2) 生食 - Blue
+          '#E18727', // (3) 5%ブドウ糖 - Orange
+          '#20854E', // (4) 混合 - Green
+          //'#6F42C1', // (5) 水+昼食 - Purple
+          //'#DC267F', // (6) 水+事前飲水 マゼンタ
+        ];
+        
         // Firebaseの初期化
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
@@ -179,7 +170,8 @@
         const heatmapContainer = document.getElementById('heatmap-container');
         const generateGraphsButton = document.getElementById('generate-graphs-button');
         const graphsSection = document.getElementById('graphs-section');
-        
+        const drinkLegendEl = document.getElementById('drink-legend');
+      
         let currentData = [];
         let currentSort = {
             column: 'collectionTime',
@@ -215,6 +207,33 @@
         }
 
         document.addEventListener('DOMContentLoaded', loadSavedData);
+
+        function renderDrinkLegend(){
+        if(!drinkLegendEl) return;
+        drinkLegendEl.innerHTML = '';
+        drinkTypes.forEach((label, i) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'flex items-center gap-2';
+
+            const sw = document.createElement('div');
+            sw.className = 'w-8 h-6 rounded';
+            sw.style.backgroundColor = DRINK_COLORS[i] ?? '#9CA3AF';
+
+            const tx = document.createElement('span');
+            tx.className = 'text-sm text-gray-700';
+            tx.textContent = label;
+
+            wrap.appendChild(sw);
+            wrap.appendChild(tx);
+            drinkLegendEl.appendChild(wrap);
+        });
+        }
+
+        // 既存の loadSavedData と同じタイミングでOK
+        document.addEventListener('DOMContentLoaded', () => {
+        loadSavedData();
+        renderDrinkLegend();
+        });
 
         function showMessage(text, isError = false) {
             messageArea.textContent = text;
@@ -322,14 +341,8 @@
         
         // ★★★★★ NEJMカラーパレット適用：飲料に応じた背景色を返す関数 ★★★★★
         function getDrinkBackgroundColor(drinkType) {
-            const index = drinkTypes.indexOf(drinkType);
-            switch (index) {
-                case 0: return '#BC3C29'; // 水 - NEJM Red
-                case 1: return '#0072B5'; // 食塩水 - NEJM Blue
-                case 2: return '#E18727'; // ブドウ糖水 - NEJM Orange
-                case 3: return '#20854E'; // 混合溶液 - NEJM Green
-                default: return '#9CA3AF'; // その他 - Gray
-            }
+          const index = drinkTypes.indexOf(drinkType);
+          return DRINK_COLORS[index] ?? '#9CA3AF';
         }
 
         // ヒートマップをレンダリングする関数
