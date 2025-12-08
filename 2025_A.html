@@ -139,8 +139,8 @@
         ];
         
         const drinkTypes = [
-            '(1)水', '(2)0.9% (w/v) 食塩水', '(3)5% (w/v) ブドウ糖溶液', '(4)0.45%NaCl_2.5%ブドウ糖溶液',
-          '(5)水+昼食', '(6)水+事前飲水',
+            '水', '0.9% (w/v) 食塩水', '5% (w/v) ブドウ糖溶液', '0.45%NaCl_2.5%ブドウ糖溶液',
+            '(5)水+昼食', '(6)水+事前飲水',
         ];
 
         // 6条件用カラー（既存NEJM 4色を踏襲しつつ2色追加）
@@ -150,7 +150,7 @@
           '#E18727', // (3) 5%ブドウ糖 - Orange
           '#20854E', // (4) 混合 - Green
           '#6F42C1', // (5) 水+昼食 - Purple
-          '#6B7280', // (6) 水+事前飲水 - Gray
+          '#DC267F', // (6) 水+事前飲水 マゼンタ
         ];
         
         // Firebaseの初期化
@@ -207,6 +207,33 @@
         }
 
         document.addEventListener('DOMContentLoaded', loadSavedData);
+
+        function renderDrinkLegend(){
+        if(!drinkLegendEl) return;
+        drinkLegendEl.innerHTML = '';
+        drinkTypes.forEach((label, i) => {
+            const wrap = document.createElement('div');
+            wrap.className = 'flex items-center gap-2';
+
+            const sw = document.createElement('div');
+            sw.className = 'w-8 h-6 rounded';
+            sw.style.backgroundColor = DRINK_COLORS[i] ?? '#9CA3AF';
+
+            const tx = document.createElement('span');
+            tx.className = 'text-sm text-gray-700';
+            tx.textContent = label;
+
+            wrap.appendChild(sw);
+            wrap.appendChild(tx);
+            drinkLegendEl.appendChild(wrap);
+        });
+        }
+
+        // 既存の loadSavedData と同じタイミングでOK
+        document.addEventListener('DOMContentLoaded', () => {
+        loadSavedData();
+        renderDrinkLegend();
+        });
 
         function showMessage(text, isError = false) {
             messageArea.textContent = text;
