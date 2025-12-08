@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生理学実習 データ収集</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Plotly -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .sortable { cursor: pointer; user-select: none; }
+        .sortable:hover { background-color: #f0f0f0; }
+        .sort-indicator { display: inline-block; width: 1em; text-align: right; }
+        .heatmap-cell { width: 4rem; height: 2.5rem; }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-4xl mx-auto p-4">
+        <div class="bg-white rounded-2xl shadow-lg p-6 md:p-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-800 text-center mb-2">生理学実習 データ収集フォーム</h1>
+            <p class="text-gray-500 text-center mb-6">ID、飲料、時刻、尿量を入力してください。</p>
+
+            <!-- 入力フォーム -->
+            <div id="submission-form" class="space-y-4 mb-8">
+                <div>
+                    <label for="anonymous-id" class="block text-sm font-medium text-gray-700 mb-1">あなたのID</label>
+                    <select id="anonymous-id" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                        <option value="">IDを選択してください</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="drink-type" class="block text-sm font-medium text-gray-700 mb-1">摂取した飲料</label>
+                    <select id="drink-type" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                        <option value="">飲料を選択してください</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="initial-time" class="block text-sm font-medium text-gray-700 mb-1">初回排尿時刻</label>
+                        <input type="time" id="initial-time" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    </div>
+                    <div>
+                        <label for="collection-time" class="block text-sm font-medium text-gray-700 mb-1">今回の採尿時刻</label>
+                        <input type="time" id="collection-time" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                    </div>
+                </div>
+                <div>
+                    <label for="urine-volume" class="block text-sm font-medium text-gray-700 mb-1">尿量 (mL)</label>
+                    <input type="number" id="urine-volume" placeholder="数値を入力" class="w-full p-3 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition">
+                </div>
+                <button id="submit-button" class="w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition-transform transform hover:scale-105">
+                    データを送信
+                </button>
+            </div>
+            
+            <!-- メッセージ表示エリア -->
+            <div id="message-area" class="text-center p-3 rounded-lg mb-8" style="display: none;"></div>
+
+            <!-- 提出状況ヒートマップ -->
+            <div class="mb-8">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">提出状況ヒートマップ</h2>
+                
+                <!-- カラー凡例 -->
+                <div id="drink-legend" class="flex flex-wrap gap-4"></div>
+                
+                <div id="heatmap-container" class="overflow-x-auto">
+                    <!-- Heatmap will be inserted here by JavaScript -->
+                </div>
+            </div>
+
+            <!-- ★★★ グラフ表示エリア (表の上に移動) ★★★ -->
+            <div id="graphs-section" class="mb-8" style="display: none;">
+                <h2 class="text-xl md:text-2xl font-bold text-gray-800 mb-4">データ分析グラフ</h2>
+                
+                <!-- ボックスプロットのみ表示 -->
+                <div class="bg-white rounded-lg shadow p-6 border border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-700 mb-4">尿量の時系列分布（ボックスプロット）</h3>
+                    <div id="boxplot-chart"></div>
+                </div>
+            </div>
+
+            <!-- リアルタイムデータ表示 -->
+            <div>
+                <div class="flex flex-col md:flex-row justify-between items-center mb-4">
+                    <h2 class="text-xl md:text-2xl font-bold text-gray-800">リアルタイムデータ一覧</h2>
+                    <div class="flex gap-2 mt-2 md:mt-0">
+                        <button id="generate-graphs-button" class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-4 focus:ring-indigo-500 focus:ring-opacity-50 transition">
+                            グラフを生成・更新
+                        </button>
+                        <button id="download-csv-button" class="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 focus:outline-none focus:ring-4 focus:ring-gray-500 focus:ring-opacity-50 transition">
+                            CSVでダウンロード
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto bg-gray-50 p-4 rounded-lg border">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="anonymousId">ID <span class="sort-indicator"></span></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="drinkType">飲料 <span class="sort-indicator"></span></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="initialTime">初回排尿時刻 <span class="sort-indicator"></span></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="collectionTime">採尿時刻 <span class="sort-indicator"></span></th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider sortable" data-sort-by="urineVolume">尿量 (mL) <span class="sort-indicator"></span></th>
+                            </tr>
+                        </thead>
+                        <tbody id="data-table" class="bg-white divide-y divide-gray-200">
+                            <!-- データがここに挿入されます -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebaseライブラリのインポート
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+        import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCiCoTNLV29LqXZCbwLKYLvNLgVQEIS87s",
+            authDomain: "clearance-2025.firebaseapp.com",
+            projectId: "clearance-2025",
+            storageBucket: "clearance-2025.firebasestorage.app",
+            messagingSenderId: "228268271251",
+            appId: "1:228268271251:web:455bfac59a3dc7f5cf0f66",
+            measurementId: "G-GWY9HR3SQD"
+        };
+
+        const anonymousIds = [
+            '01-Apple', '02-Berry', '03-Candy', '04-Desk', '05-Eagle',
+            '06-Fish', '07-Grape', '08-Hat', '09-Ink', '10-Juice',
+            '11-Kiwi', '12-Lemon', '13-Melon', '14-Note', '15-Orange',
+            '16-Peach', '17-Queen', '18-Rose', '19-Star', '20-Tulip',
+            '21-Umbrella', '22-Violin', '23-Water', '24-Xylophone', '25-Yacht',
+            '26-Zebra', '27-Anchor', '28-Brush', '29-Cloud', '30-Diamond'
+        ];
+        
+        const drinkTypes = [
+            '(1)水', '(2)0.9% (w/v) 食塩水', '(3)5% (w/v) ブドウ糖溶液', '(4)0.45%NaCl_2.5%ブドウ糖溶液',
+          '(5)水+昼食', '(6)水+事前飲水',
+        ];
+
+        // 6条件用カラー（既存NEJM 4色を踏襲しつつ2色追加）
+        const DRINK_COLORS = [
+          '#BC3C29', // (1) 水 - Red
+          '#0072B5', // (2) 生食 - Blue
+          '#E18727', // (3) 5%ブドウ糖 - Orange
+          '#20854E', // (4) 混合 - Green
+          '#6F42C1', // (5) 水+昼食 - Purple
+          '#6B7280', // (6) 水+事前飲水 - Gray
+        ];
+        
+        // Firebaseの初期化
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // DOM要素の取得
+        const idSelect = document.getElementById('anonymous-id');
+        const drinkSelect = document.getElementById('drink-type');
+        const initialTimeInput = document.getElementById('initial-time');
+        const collectionTimeInput = document.getElementById('collection-time');
+        const volumeInput = document.getElementById('urine-volume');
+        const submitButton = document.getElementById('submit-button');
+        const messageArea = document.getElementById('message-area');
+        const dataTable = document.getElementById('data-table');
+        const downloadCsvButton = document.getElementById('download-csv-button');
+        const heatmapContainer = document.getElementById('heatmap-container');
+        const generateGraphsButton = document.getElementById('generate-graphs-button');
+        const graphsSection = document.getElementById('graphs-section');
+        const drinkLegendEl = document.getElementById('drink-legend');
+      
+        let currentData = [];
+        let currentSort = {
+            column: 'collectionTime',
+            direction: 'asc'
+        };
+        const timeSlots = ['飲料摂取前', '摂取30分後', '60分後', '90分後', '120分後','150分後'];
+
+        // プルダウンの初期化 (ID)
+        anonymousIds.forEach(id => {
+            const option = document.createElement('option');
+            option.value = id;
+            option.textContent = id;
+            idSelect.appendChild(option);
+        });
+
+        // プルダウンの初期化 (飲料)
+        drinkTypes.forEach(drink => {
+            const option = document.createElement('option');
+            option.value = drink;
+            option.textContent = drink;
+            drinkSelect.appendChild(option);
+        });
+
+        // 保存されたデータを読み込む関数
+        function loadSavedData() {
+            const savedId = localStorage.getItem('physioLabId');
+            const savedDrink = localStorage.getItem('physioLabDrink');
+            const savedInitialTime = localStorage.getItem('physioLabInitialTime');
+
+            if (savedId) idSelect.value = savedId;
+            if (savedDrink) drinkSelect.value = savedDrink;
+            if (savedInitialTime) initialTimeInput.value = savedInitialTime;
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSavedData);
+
+        function showMessage(text, isError = false) {
+            messageArea.textContent = text;
+            messageArea.className = `text-center p-3 rounded-lg mb-8 ${isError ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            messageArea.style.display = 'block';
+            setTimeout(() => { messageArea.style.display = 'none'; }, 4000);
+        }
+
+        // 時刻を実験のタイムスロットに丸める関数
+        function roundTime(timeString) {
+            const [hour, minute] = timeString.split(':').map(Number);
+            const totalMinutes = hour * 60 + minute;
+
+            if (totalMinutes >= 13 * 60 + 46 -30 && totalMinutes <= 14 * 60 + 15 -30) return '飲料摂取前';
+            if (totalMinutes >= 14 * 60 + 16 -30 && totalMinutes <= 14 * 60 + 45 -30) return '摂取30分後';
+            if (totalMinutes >= 14 * 60 + 46 -30 && totalMinutes <= 15 * 60 + 15 -30) return '60分後';
+            if (totalMinutes >= 15 * 60 + 16 -30 && totalMinutes <= 15 * 60 + 45 -30) return '90分後';
+            if (totalMinutes >= 15 * 60 + 46 -30 && totalMinutes <= 16 * 60 + 15 -30) return '120分後';
+            if (totalMinutes >= 16 * 60 + 16 -30 && totalMinutes <= 16 * 60 + 45 -30) return '150分後';
+
+            return null;
+        }
+
+        // データ送信処理
+        submitButton.addEventListener('click', async () => {
+            const id = idSelect.value;
+            const drink = drinkSelect.value;
+            const initialTime = initialTimeInput.value;
+            const collectionTime = collectionTimeInput.value;
+            const volume = volumeInput.value;
+
+            if (!id || !drink || !initialTime || !collectionTime || volume === '') {
+                showMessage('すべての項目を入力してください。', true);
+                return;
+            }
+
+            const initialHour = parseInt(initialTime.split(':')[0], 10);
+            const collectionHour = parseInt(collectionTime.split(':')[0], 10);
+
+            if (initialHour < 12 || collectionHour < 12) {
+                showMessage('時刻は午後(12時以降)で入力してください(例: 午後1時 → 13:00)。', true);
+                return;
+            }
+
+            const existingRecordsForId = currentData.filter(record => record.anonymousId === id);
+            
+            if (existingRecordsForId.length > 0) {
+                const firstRecord = existingRecordsForId[existingRecordsForId.length - 1]; 
+
+                if (drink !== firstRecord.drinkType) {
+                    showMessage(`選択された飲料「${drink}」が初回登録の飲料「${firstRecord.drinkType}」と異なります。`, true);
+                    return;
+                }
+                if(initialTime !== firstRecord.initialTime) {
+                    showMessage(`入力された初回排尿時刻「${initialTime}」が初回登録の時刻「${firstRecord.initialTime}」と異なります。`, true);
+                    return;
+                }
+            }
+
+            const roundedCollectionTime = roundTime(collectionTime);
+            if (!roundedCollectionTime) {
+                showMessage('採尿時刻が指定された時間範囲外です。', true);
+                return;
+            }
+
+            const isDuplicate = currentData.some(record => {
+                return record.anonymousId === id && roundTime(record.collectionTime) === roundedCollectionTime;
+            });
+
+            if (isDuplicate) {
+                showMessage(`「${roundedCollectionTime}」の時間帯のデータは既に登録されています。`, true);
+                return;
+            }
+
+            const docId = `${id}_${collectionTime}`;
+            const docRef = doc(db, "submissions", docId);
+
+            try {
+                const docSnap = await getDoc(docRef);
+                if (docSnap.exists()) {
+                    showMessage('このIDと採尿時刻のデータは既に送信されています。', true);
+                } else {
+                    await setDoc(docRef, {
+                        anonymousId: id,
+                        drinkType: drink,
+                        initialTime: initialTime,
+                        collectionTime: collectionTime,
+                        urineVolume: Number(volume),
+                        timestamp: new Date()
+                    });
+                    
+                    localStorage.setItem('physioLabId', id);
+                    localStorage.setItem('physioLabDrink', drink);
+                    localStorage.setItem('physioLabInitialTime', initialTime);
+
+                    showMessage('データを正常に送信しました。');
+                    volumeInput.value = '';
+                    collectionTimeInput.value = '';
+                }
+            } catch (error) {
+                console.error("Error writing document: ", error);
+                showMessage('データの送信中にエラーが発生しました。', true);
+            }
+        });
+        
+        // ★★★★★ NEJMカラーパレット適用：飲料に応じた背景色を返す関数 ★★★★★
+        function getDrinkBackgroundColor(drinkType) {
+          const index = drinkTypes.indexOf(drinkType);
+          return DRINK_COLORS[index] ?? '#9CA3AF';
+        }
+
+        // ヒートマップをレンダリングする関数
+        function renderHeatmap(submissionMap) {
+            heatmapContainer.innerHTML = '';
+            const table = document.createElement('table');
+            table.className = 'min-w-full text-center border-collapse border border-gray-300 table-fixed';
+
+            // ヘッダー行
+            const thead = document.createElement('thead');
+            let headerRow = '<tr><th class="border border-gray-300 p-2 bg-gray-100" style="width: 6rem;">ID</th>';
+            timeSlots.forEach(slot => {
+                headerRow += `<th class="border border-gray-300 p-2 bg-gray-100 text-sm" style="width: 4rem;">${slot}</th>`;
+            });
+            headerRow += '</tr>';
+            thead.innerHTML = headerRow;
+            table.appendChild(thead);
+
+            // データ行
+            const tbody = document.createElement('tbody');
+            anonymousIds.forEach(id => {
+                let dataRow = `<tr><td class="border border-gray-300 p-2 font-medium text-sm text-gray-800 word-break-all">${id}</td>`;
+                timeSlots.forEach(slot => {
+                    const submissionData = submissionMap[id]?.[slot];
+                    const submitted = (submissionData !== undefined);
+                    
+                    // ★★★★★ NEJMカラー適用：背景色をインラインスタイルで指定 ★★★★★
+                    if (submitted) {
+                        const bgColor = getDrinkBackgroundColor(submissionData.drink);
+                        dataRow += `<td class="border border-gray-300 heatmap-cell text-white font-medium" style="background-color: ${bgColor};">${submissionData.volume}</td>`;
+                    } else {
+                        dataRow += `<td class="border border-gray-300 heatmap-cell bg-gray-100 text-gray-400"></td>`;
+                    }
+                });
+                dataRow += '</tr>';
+                tbody.innerHTML += dataRow;
+            });
+            table.appendChild(tbody);
+            heatmapContainer.appendChild(table);
+        }
+
+        // テーブルをレンダリングする関数
+        function renderTable() {
+            const sortedData = [...currentData].sort((a, b) => {
+                const valA = a[currentSort.column];
+                const valB = b[currentSort.column];
+                
+                let comparison = 0;
+                if (valA > valB) {
+                    comparison = 1;
+                } else if (valA < valB) {
+                    comparison = -1;
+                }
+                return currentSort.direction === 'desc' ? comparison * -1 : comparison;
+            });
+
+            dataTable.innerHTML = '';
+            if (sortedData.length === 0) {
+                const row = dataTable.insertRow();
+                const cell = row.insertCell();
+                cell.colSpan = 5;
+                cell.textContent = 'まだデータがありません。';
+                cell.className = 'px-6 py-4 text-center text-gray-500';
+            } else {
+                sortedData.forEach((data) => {
+                    const row = dataTable.insertRow();
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${data.anonymousId}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.drinkType || ''}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.initialTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.collectionTime}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${data.urineVolume}</td>
+                    `;
+                });
+            }
+            updateSortIndicators();
+        }
+
+        // ソートインジケーター(▲▼)を更新する関数
+        function updateSortIndicators() {
+            document.querySelectorAll('th.sortable').forEach(th => {
+                const indicator = th.querySelector('.sort-indicator');
+                if (th.dataset.sortBy === currentSort.column) {
+                    indicator.textContent = currentSort.direction === 'asc' ? '▲' : '▼';
+                } else {
+                    indicator.textContent = '';
+                }
+            });
+        }
+        
+        // リアルタイムデータ取得
+        const q = query(collection(db, "submissions"), orderBy("timestamp", "desc"));
+        onSnapshot(q, (querySnapshot) => {
+            const dataFromFirestore = [];
+            querySnapshot.forEach((doc) => {
+                dataFromFirestore.push(doc.data());
+            });
+            currentData = dataFromFirestore;
+
+            const submissionMap = {};
+            anonymousIds.forEach(id => { submissionMap[id] = {}; }); 
+            
+            currentData.forEach(record => {
+                const roundedTime = roundTime(record.collectionTime);
+                if (roundedTime && submissionMap[record.anonymousId]) {
+                    submissionMap[record.anonymousId][roundedTime] = { 
+                        volume: record.urineVolume, 
+                        drink: record.drinkType 
+                    };
+                }
+            });
+            
+            renderHeatmap(submissionMap);
+            renderTable();
+        });
+
+        // ヘッダーをクリックしたときのソート処理
+        document.querySelectorAll('th.sortable').forEach(header => {
+            header.addEventListener('click', () => {
+                const column = header.dataset.sortBy;
+                if (currentSort.column === column) {
+                    currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+                } else {
+                    currentSort.column = column;
+                    currentSort.direction = 'asc';
+                }
+                renderTable();
+            });
+        });
+
+        // CSVダウンロード処理
+        downloadCsvButton.addEventListener('click', () => {
+            if (currentData.length === 0) {
+                showMessage('ダウンロードするデータがありません。', true);
+                return;
+            }
+            const headers = ['ID', '飲料', '初回排尿時刻', '採尿時刻', '尿量(mL)'];
+            let csvContent = "data:text/csv;charset=utf-8," + headers.join(',') + '\n';
+            const sortedData = [...currentData].sort((a, b) => {
+                const valA = a[currentSort.column];
+                const valB = b[currentSort.column];
+                let comparison = 0;
+                if (valA > valB) { comparison = 1; } 
+                else if (valA < valB) { comparison = -1; }
+                return currentSort.direction === 'desc' ? comparison * -1 : comparison;
+            });
+            
+            sortedData.forEach(item => {
+                const row = [item.anonymousId, item.drinkType, item.initialTime, item.collectionTime, item.urineVolume];
+                csvContent += row.join(',') + '\n';
+            });
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "physiology_lab_data.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+
+        // =======================================================
+        // ▼▼▼ グラフ描画ロジック ▼▼▼
+        // =======================================================
+
+        // グラフ生成ボタンのイベントリスナー
+        generateGraphsButton.addEventListener('click', () => {
+            if (currentData.length === 0) {
+                showMessage('グラフを表示するためのデータがありません。', true);
+                return;
+            }
+
+            // グラフエリアを表示
+            graphsSection.style.display = 'block';
+
+            // ボックスプロットのみ描画
+            updateBoxPlot(); 
+        });
+
+        // -------------------------------------------------
+        // 1. Plotly ボックスプロット描画関数 (時系列版・点重ね)
+        // -------------------------------------------------
+        function updateBoxPlot() {
+            // データを準備
+            const tracesData = {};
+            drinkTypes.forEach(dt => { 
+                tracesData[dt] = { x: [], y: [] }; 
+            });
+
+            currentData.forEach(record => {
+                const timeSlot = roundTime(record.collectionTime);
+                if (timeSlot && drinkTypes.includes(record.drinkType)) {
+                    tracesData[record.drinkType].x.push(timeSlot);
+                    tracesData[record.drinkType].y.push(record.urineVolume);
+                }
+            });
+
+            // Plotly用のトレース配列を作成
+            const traces = drinkTypes.map(drink => {
+                return {
+                    x: tracesData[drink].x, // X軸: 時刻カテゴリ
+                    y: tracesData[drink].y, // Y軸: 尿量
+                    name: drink,
+                    type: 'box',
+                    marker: { 
+                        color: getDrinkBackgroundColor(drink),
+                        size: 8, 
+                        opacity: 0.7 
+                    },
+                    boxpoints: 'all', // ★全点を表示
+                    jitter: 0.5,      // ★散らばり具合 (0-1)
+                    pointpos: 0,      // ★箱に対する位置 (0で箱の中央に重ねる)
+                    fillcolor: 'rgba(255,255,255,0.5)', 
+                    line: { width: 1.5 }
+                };
+            });
+            
+            const layout = {
+                title: '尿量の時系列分布 (Boxplot)',
+                yaxis: {
+                    title: '尿量 (mL)',
+                    zeroline: true
+                },
+                xaxis: {
+                    title: '時間',
+                    categoryorder: 'array',
+                    categoryarray: timeSlots 
+                },
+                boxmode: 'group',
+                legend: {
+                    orientation: 'h',
+                    y: 1.1 
+                }
+            };
+
+            const config = { responsive: true };
+
+            // Plotlyで描画
+            Plotly.newPlot('boxplot-chart', traces, layout, config);
+        }
+    </script>
+</body>
+</html>
