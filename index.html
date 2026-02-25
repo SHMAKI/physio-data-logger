@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>生理学実習 データ収集</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- App Check SDK の読み込み -->
+    <script type="importmap">
+        {
+        "imports": {
+        "firebase-app-check": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js"
+        }
+        }
+</script>
     <!-- Plotly -->
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -121,7 +129,7 @@
         // Firebaseライブラリのインポート
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
         import { getFirestore, doc, getDoc, setDoc, collection, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
+        import { initializeAppCheck, ReCaptchaV3Provider } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check.js";
         const firebaseConfig = {
             apiKey: "AIzaSyCiCoTNLV29LqXZCbwLKYLvNLgVQEIS87s",
             authDomain: "clearance-2025.firebaseapp.com",
@@ -158,6 +166,10 @@
         
         // Firebaseの初期化
         const app = initializeApp(firebaseConfig);
+        const appCheck = initializeAppCheck(app, {
+            provider: new ReCaptchaV3Provider('6LewKncsAAAAANXLXeX9a7pwUgttHtDUpcKvMEnK'), // サイトキーをここに
+            isTokenAutoRefreshEnabled: true
+        });
         const db = getFirestore(app);
 
         // DOM要素の取得
